@@ -32,7 +32,7 @@ they do, and for anyone building something similar.
 9. **`brightnessctl` and `powerprofilesctl` work from the user's session services (logind), not
    from an ssh shell.** Test them from the desktop.
 10. **Omarchy's default window opacity (0.985 / 0.96) makes black look dark grey.** The rain
-    windows get an `opacity = "1.0 override 1.0 override"` rule. In foot, true black needs
+    windows of [omarchy-mac-kit-extras](https://github.com/pnshad/omarchy-mac-kit-extras) get an `opacity = "1.0 override 1.0 override"` rule. In foot, true black needs
     24-bit colour (`\e[48;2;0;0;0m`); ANSI background 40 is the theme's dark grey, and foot 1.28
     rejects a `[colors]` section on the command line (`-o colors-dark.background=000000` works).
 

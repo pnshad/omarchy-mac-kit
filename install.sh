@@ -15,13 +15,13 @@ set -euo pipefail
 KIT=$(cd "$(dirname "$0")" && pwd)
 . "$KIT/lib/common.sh"
 
-USER_MODULES="hwdeck wall screensaver lid touchbar"
+USER_MODULES="hwdeck lid touchbar"
+# Moved to omarchy-mac-kit-extras; only their --undo stays here, for older installs.
+MOVED_MODULES="wall screensaver"
 ROOT_MODULES="fans-ram smc-power battery-limit mic lock-fingerprint"
 what() {
   case $1 in
   hwdeck) echo "terminal hardware dashboards (any Linux)" ;;
-  wall) echo "the hwdeck views as a 3x2 floating grid (Hyprland)" ;;
-  screensaver) echo "digital-rain screensaver + live hwdeck wall + hourly rain pass (Omarchy; rain anywhere)" ;;
   lid) echo "lid close: lock, freeze GUI apps, panel off, no suspend; sleep/awake mode (Omarchy laptops)" ;;
   touchbar) echo "touchbar-strip as the Touch Bar renderer (T1 MacBook Pro + t1bridge)" ;;
   fans-ram) echo "root helper + exact-argument sudo rule: fans max/auto, RAM trim (Intel Macs)" ;;
@@ -50,7 +50,6 @@ detect() {
   fi
   SUGGEST=""
   SUGGEST+=" hwdeck"
-  [[ $flavour != none ]] && SUGGEST+=" wall screensaver"
   [[ $omarchy == yes && -d /proc/acpi/button/lid ]] && SUGGEST+=" lid"
   [[ $t1 == yes ]] && SUGGEST+=" touchbar"
   SUGGEST_ROOT=""
@@ -66,10 +65,14 @@ list() {
   for m in $USER_MODULES; do printf '  %-17s %s\n' "$m" "$(what "$m")"; done
   say "Root modules (sudo; each asks before it grants anything):"
   for m in $ROOT_MODULES; do printf '  %-17s %s\n' "$m" "$(what "$m")"; done
+  say "Extras (deck wall, rain screensaver, pixel refresh): https://github.com/pnshad/omarchy-mac-kit-extras"
 }
+
+moved() { [[ " $MOVED_MODULES " == *" $1 "* ]]; }
 
 run_module() {   # run_module MODULE [args...]
   local m=$1; shift
+  moved "$m" && die "$m moved to omarchy-mac-kit-extras (https://github.com/pnshad/omarchy-mac-kit-extras)"
   known "$m" || die "unknown module: $m (./install.sh --list)"
   say ""
   say "== $m: $(what "$m")"
@@ -98,7 +101,10 @@ while (( $# )); do
 done
 
 if [[ -n $undo ]]; then
-  if [[ $undo == mic ]]; then run_module mic undo; else run_module "$undo" --undo; fi
+  if moved "$undo"; then
+    say "$undo now belongs to omarchy-mac-kit-extras; undoing what an older omarchy-mac-kit installed:"
+    OMK_DRY_RUN=$OMK_DRY_RUN bash "$KIT/lib/legacy-undo.sh" "$undo"
+  elif [[ $undo == mic ]]; then run_module mic undo; else run_module "$undo" --undo; fi
   exit 0
 fi
 

@@ -1,11 +1,16 @@
 # omarchy-mac-kit: shared helpers for every module installer. Sourced, not run.
 #
+# Blocks, files and names are the same omk ones omarchy-mac-kit-extras uses, so a block or file
+# either installer wrote is found and undone by the other (the PATH override block is shared, and
+# is removed only when no override file is left).
+#
 # Dry run: OMK_DRY_RUN=1 (install.sh --dry-run) prints every change instead of making it and
 # touches nothing: no files, no units, no sudo.
 
 OMK_ROOT=${OMK_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 OMK_DRY_RUN=${OMK_DRY_RUN:-0}
 OMK_PREFIX=omk
+OMK_KIT_NAME=omarchy-mac-kit   # named in the marker blocks it writes
 OMK_BIN=${OMK_BIN:-$HOME/.local/bin}
 OMK_OVERRIDE_DIR=${OMK_OVERRIDE_DIR:-$HOME/.local/share/omk/bin}
 OMK_CONFIG=${OMK_CONFIG:-$HOME/.config/omk}
@@ -66,8 +71,8 @@ block_add() {
   fi
   [[ -f $file ]] || die "$file not found"
   [[ -e $file.omk-backup ]] || cp -p "$file" "$file.omk-backup"
-  printf '\n%s >>> omk:%s (omarchy-mac-kit; remove with ./install.sh --undo)\n%s\n%s <<< omk:%s\n' \
-    "$c" "$name" "$body" "$c" "$name" >> "$file"
+  printf '\n%s >>> omk:%s (%s; remove with ./install.sh --undo)\n%s\n%s <<< omk:%s\n' \
+    "$c" "$name" "$OMK_KIT_NAME" "$body" "$c" "$name" >> "$file"
   say "  added the omk:$name block to $file (backup: $file.omk-backup)"
 }
 
