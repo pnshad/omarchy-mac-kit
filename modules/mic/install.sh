@@ -42,7 +42,7 @@ audio_start() { as_user systemctl --user start pipewire.socket pipewire-pulse.so
 root_owned_ko() {
   [[ -f $KO ]] || die "not built yet: sudo $0 build"
   [[ $(stat -c %u "$KO") == 0 && $(stat -c %u "$WORK") == 0 ]] || die "$KO is not root-owned: rebuild with sudo $0 build"
-  [[ $(( $(stat -c %a "$WORK") & 022 )) == 0 ]] || die "$WORK is writable by others: rebuild"
+  [[ $(( 8#$(stat -c %a "$WORK") & 8#022 )) == 0 ]] || die "$WORK is writable by others: rebuild"
 }
 
 swap_in() {          # $1 = path to a .ko, or "stock"
