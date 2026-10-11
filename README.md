@@ -39,7 +39,10 @@ it will grant (files, units, sudo rules) and waits for `y`. They refuse to run f
 The `mic` module is three separate steps you run yourself:
 `sudo modules/mic/install.sh build`, then `test` (this boot only), then `install`.
 
-`hwdeck` and `touchbar` clone their repos at a pinned tag (or use a checkout next to this one).
+`hwdeck` and `touchbar` clone their repos and check out a pinned commit, verified after the
+clone (the maintainer tags releases; `OMK_HWDECK_TAG` / `OMK_STRIP_TAG` pick a tag, which must
+point at the pinned commit). If a checkout of either sits next to this one, the installer asks
+whether to use it instead (default No: that copy is not checked against the pin).
 
 ## Where things go
 

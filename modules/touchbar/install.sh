@@ -9,7 +9,8 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/../../lib/common.sh"
 REPO=https://github.com/pnshad/touchbar-strip
-TAG=${OMK_STRIP_TAG:-v1.0.0}            # pinned; bump deliberately
+COMMIT=48a4b75c70734669ed02cc148843208ff15ff484   # pinned; bump deliberately after reading the diff
+TAG=${OMK_STRIP_TAG:-}                           # optional: a release tag that must point at COMMIT
 LIB=$HOME/.local/lib/touchbar-strip
 CONF=$HOME/.config/touchbar-strip/config.json
 LINK=$HOME/.config/t1bridge/renderer
@@ -34,15 +35,14 @@ if ! dry && ! systemctl --user cat t1-touchbar.service > /dev/null 2>&1; then
   die "t1-touchbar.service (t1bridge) not found: install t1bridge first"
 fi
 
-src=$OMK_ROOT/../touchbar-strip
-if [[ -f $src/touchbar-strip ]]; then
-  say "  touchbar-strip from the local checkout $(cd "$src" && pwd)"
+src=
+if use_sibling "$OMK_ROOT/../touchbar-strip" touchbar-strip; then
+  src=$OMK_ROOT/../touchbar-strip
 elif dry; then
-  say "  would run: git clone --depth 1 --branch $TAG $REPO <temp dir>"
-  src=
+  fetch_pinned "$REPO" "$COMMIT" "" "$TAG"
 else
   tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
-  git clone -q --depth 1 --branch "$TAG" "$REPO" "$tmp/touchbar-strip"
+  fetch_pinned "$REPO" "$COMMIT" "$tmp/touchbar-strip" "$TAG"
   src=$tmp/touchbar-strip
 fi
 if [[ -n $src ]]; then

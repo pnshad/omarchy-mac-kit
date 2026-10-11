@@ -55,7 +55,7 @@ command -v dkms >/dev/null || { say "  dkms is not installed (Arch: pacman -S dk
 grant_confirm "build and install the DKMS module $PKG/$VER (GPL-2.0, from $HERE) for kernel $kver,
   replacing the stock applesmc driver (falls back to stock if it does not load)
 add $UNIT (root): sets the limit at every boot and makes the charge knob writable by $TARGET_USER
-create $STATE owned by $TARGET_USER (the limit chosen last; a Touch Bar strip's hold changes it)
+create $STATE owned by $TARGET_USER (its folder stays root's) (the limit chosen last; a Touch Bar strip's hold changes it)
 set the limit to ${LIMIT}%"
 dry && exit 0
 
@@ -82,8 +82,12 @@ compgen -G "$(dirname "$knob")/fan1_input" > /dev/null || warn "fan1_input missi
 
 # 3. the limit at every boot: the last one chosen (state file), else the installed one; then
 #    the knob goes to the user so a Touch Bar strip can toggle it without root
-install -d -o "$TARGET_USER" -m 755 "$(dirname "$STATE")"
-echo "$LIMIT" > "$STATE"; chown "$TARGET_USER" "$STATE"
+# the folder stays root's; only the one file is the user's (root never writes inside a
+# user-owned folder)
+install -d -o root -g root -m 0755 "$(dirname "$STATE")"
+rm -f "$STATE"
+install -o "$TARGET_USER" -m 0644 /dev/null "$STATE"
+printf '%s\n' "$LIMIT" > "$STATE"
 cat > "$UNIT" <<UNITEOF
 [Unit]
 Description=omarchy-mac-kit: hold the battery at the chosen charge limit (applesmc BCLM)

@@ -33,5 +33,6 @@ dry && exit 0
 install -m 0755 -o root -g root "$HERE/omk-lock-wait-lid-open" "$HELPER"
 [[ -f $PAM && ! -f $PAM.omk-backup ]] && cp -p "$PAM" "$PAM.omk-backup"
 install -m 0644 -o root -g root "$HERE/omarchy-lock-fingerprint.pam" "$PAM"
-say "  installed. Test: lock (omarchy-system-lock), touch the sensor once; the password still works."
+say "  installed. Test NOW, before relying on it: lock (omarchy-system-lock) and unlock with the"
+say "  password; then lock again and touch the sensor once. Lid closed (clamshell): use the password."
 say "  Never cancel a Touch ID prompt in a loop or script extra verifies (docs/gotchas.md)."

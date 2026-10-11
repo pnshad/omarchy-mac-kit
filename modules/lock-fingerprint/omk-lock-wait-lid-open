@@ -7,11 +7,14 @@
 #   - the lid is closed, or
 #   - the lock screen has blanked the internal panel (DPMS off; it wakes on any key or touch).
 # pam_fprintd only starts once the panel is lit, so handoffs track real unlock attempts.
-# Exit status is ignored by the PAM stack ([default=ignore]).
+# Exit status is ignored by the PAM stack ([default=ignore]). The wait is capped at 12 hours;
+# then it returns and PAM goes on to the normal fingerprint / password flow.
 lid=$(ls /proc/acpi/button/lid/*/state 2>/dev/null | head -1)
 panel=$(ls -d /sys/class/drm/card*-eDP-* 2>/dev/null | head -1)
-while :; do
+deadline=$(( SECONDS + 12 * 3600 ))
+while (( SECONDS < deadline )); do
   if [[ -r $lid && $(< "$lid") == *closed* ]]; then sleep 1; continue; fi
   if [[ -n $panel && -r $panel/dpms && $(< "$panel/dpms") == Off ]]; then sleep 0.5; continue; fi
   exit 0
 done
+exit 0

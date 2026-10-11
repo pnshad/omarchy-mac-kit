@@ -44,6 +44,9 @@ they do, and for anyone building something similar.
     screen alone made ~120 handoffs an hour. The `lock-fingerprint` module waits while the lid is
     closed or the panel is off and keeps one verify open for the whole lock; the strip's Touch ID
     overlay is cosmetic only and never cancels or starts a verify.
+    **Clamshell / external monitor:** with the lid closed the fingerprint step waits (up to 12 h,
+    then falls through), so with the lid shut on an external monitor unlock with the password.
+    **Test password unlock before relying on the module** (lock, type the password, get in).
 12. **Two applesmc replacements fight.** With `applesmc-next-dkms` installed alongside the
     `battery-limit` module the battery vanished (`BAT0` missing) until a full power-off. The
     module refuses to install while applesmc-next is there.

@@ -146,3 +146,26 @@ grant_confirm() {
 
 # user_home USER
 user_home() { getent passwd "$1" | cut -d: -f6; }
+
+# ---- upstream code at a pinned commit --------------------------------------------------------
+# fetch_pinned REPO COMMIT DEST [TAG]: clone REPO into DEST and check out COMMIT (or TAG, when the
+# caller set one), then verify that HEAD is COMMIT. Refuses anything else.
+fetch_pinned() {
+  local repo=$1 commit=$2 dest=$3 tag=${4:-}
+  if dry; then say "  would run: git clone $repo, check out ${tag:-$commit}, verify HEAD = $commit"; return 0; fi
+  git clone -q "$repo" "$dest"
+  git -C "$dest" -c advice.detachedHead=false checkout -q "${tag:-$commit}"
+  [[ $(git -C "$dest" rev-parse HEAD) == "$commit" ]] \
+    || die "$repo at ${tag:-$commit} is $(git -C "$dest" rev-parse HEAD), not the pinned $commit"
+  say "  $repo at $commit (verified)"
+}
+
+# use_sibling DIR WHAT: offer a checkout next to the kit instead of the pinned upstream; default No
+use_sibling() {
+  local dir=$1 what=$2 a
+  [[ -d $dir ]] || return 1
+  if dry; then say "  (would ask whether to use the local checkout $dir instead; default No)"; return 1; fi
+  say "  There is a local $what checkout at $dir (not checked against the pinned commit)."
+  read -r -p "  Use it instead of the pinned upstream? [y/N] " a
+  [[ $a == y || $a == Y ]]
+}
