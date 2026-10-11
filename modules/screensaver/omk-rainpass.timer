@@ -1,0 +1,9 @@
+[Unit]
+Description=omarchy-mac-kit: hourly rain pass over the hwdeck wall
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,122 @@
+--- a/drivers/hwmon/applesmc.c	2026-10-07 03:36:59
++++ b/drivers/hwmon/applesmc.c	2026-10-07 03:36:59
+@@ -64,6 +64,9 @@
+ 
+ #define CLAMSHELL_KEY		"MSLD" /* r-o ui8 (unused) */
+ 
++#define CHARGE_LIMIT_KEY	"BCLM" /* r-w ui8, stop charging at this % */
++#define CHARGE_LIMIT_MIN	20
++
+ #define MOTION_SENSOR_X_KEY	"MO_X" /* r-o sp78 (2 bytes) */
+ #define MOTION_SENSOR_Y_KEY	"MO_Y" /* r-o sp78 (2 bytes) */
+ #define MOTION_SENSOR_Z_KEY	"MO_Z" /* r-o sp78 (2 bytes) */
+@@ -130,6 +133,7 @@
+ 	int num_light_sensors;		/* number of light sensors */
+ 	bool has_accelerometer;		/* has motion sensor */
+ 	bool has_key_backlight;		/* has keyboard backlight */
++	bool has_charge_limit;		/* has battery charge limit (BCLM) */
+ 	bool init_complete;		/* true when fully initialized */
+ 	struct applesmc_entry *cache;	/* cached key entries */
+ 	const char **index;		/* temperature key index */
+@@ -619,6 +623,9 @@
+ 	if (ret)
+ 		return ret;
+ 	ret = applesmc_has_key(BACKLIGHT_KEY, &s->has_key_backlight);
++	if (ret)
++		return ret;
++	ret = applesmc_has_key(CHARGE_LIMIT_KEY, &s->has_charge_limit);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -1263,8 +1270,56 @@
+ 		return;
+ 	led_classdev_unregister(&applesmc_backlight);
+ 	destroy_workqueue(applesmc_led_wq);
++}
++
++static ssize_t charge_control_end_threshold_show(struct device *dev,
++				struct device_attribute *attr, char *sysfsbuf)
++{
++	u8 limit;
++	int ret;
++
++	ret = applesmc_read_key(CHARGE_LIMIT_KEY, &limit, 1);
++	if (ret)
++		return ret;
++
++	return sysfs_emit(sysfsbuf, "%u\n", limit);
+ }
+ 
++static ssize_t charge_control_end_threshold_store(struct device *dev,
++				struct device_attribute *attr,
++				const char *sysfsbuf, size_t count)
++{
++	u8 limit;
++	int ret;
++
++	if (kstrtou8(sysfsbuf, 10, &limit) < 0
++	    || limit < CHARGE_LIMIT_MIN || limit > 100)
++		return -EINVAL;
++
++	ret = applesmc_write_key(CHARGE_LIMIT_KEY, &limit, 1);
++	if (ret)
++		return ret;
++
++	return count;
++}
++
++static DEVICE_ATTR_RW(charge_control_end_threshold);
++
++static int applesmc_create_charge_limit(void)
++{
++	if (!smcreg.has_charge_limit)
++		return 0;
++	return device_create_file(&pdev->dev,
++				  &dev_attr_charge_control_end_threshold);
++}
++
++static void applesmc_release_charge_limit(void)
++{
++	if (!smcreg.has_charge_limit)
++		return;
++	device_remove_file(&pdev->dev, &dev_attr_charge_control_end_threshold);
++}
++
+ static int applesmc_dmi_match(const struct dmi_system_id *id)
+ {
+ 	return 1;
+@@ -1363,14 +1418,20 @@
+ 	if (ret)
+ 		goto out_light_sysfs;
+ 
++	ret = applesmc_create_charge_limit();
++	if (ret)
++		goto out_light_ledclass;
++
+ 	hwmon_dev = hwmon_device_register(&pdev->dev);
+ 	if (IS_ERR(hwmon_dev)) {
+ 		ret = PTR_ERR(hwmon_dev);
+-		goto out_light_ledclass;
++		goto out_charge_limit;
+ 	}
+ 
+ 	return 0;
+ 
++out_charge_limit:
++	applesmc_release_charge_limit();
+ out_light_ledclass:
+ 	applesmc_release_key_backlight();
+ out_light_sysfs:
+@@ -1399,6 +1460,7 @@
+ static void __exit applesmc_exit(void)
+ {
+ 	hwmon_device_unregister(hwmon_dev);
++	applesmc_release_charge_limit();
+ 	applesmc_release_key_backlight();
+ 	applesmc_release_light_sensor();
+ 	applesmc_release_accelerometer();
+@@ -1417,3 +1479,4 @@
+ MODULE_AUTHOR("Nicolas Boichat");
+ MODULE_DESCRIPTION("Apple SMC");
+ MODULE_LICENSE("GPL v2");
++MODULE_VERSION("7.2.5-bclm1");

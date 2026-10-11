@@ -1,0 +1,28 @@
+[Unit]
+Description=omarchy-mac-kit: publish Apple SMC power readings to /run/omk-smc-power.json
+ConditionPathExistsGlob=/sys/devices/platform/applesmc.*
+
+[Service]
+ExecStart=/usr/local/bin/omk-smc-power
+# Environment=OMK_SMC_RAILS=1    # also publish the per-rail keys (CPU, graphics, ...)
+Restart=on-failure
+RestartSec=10
+RuntimeDirectory=omk-smc-power
+RuntimeDirectoryMode=0755
+CapabilityBoundingSet=
+NoNewPrivileges=yes
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+ProtectSystem=strict
+ReadWritePaths=@SMC@
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

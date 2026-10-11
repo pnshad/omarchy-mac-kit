@@ -1,0 +1,3 @@
+# The well-known path readers use (hwdeck, touchbar-strip), pointing into the service's
+# RuntimeDirectory.
+L /run/omk-smc-power.json - - - - /run/omk-smc-power/power.json

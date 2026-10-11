@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""omk-smc-power - publish the Apple SMC's power readings for unprivileged readers (omarchy-mac-kit).
+
+The SMC measures power itself (PSTR = whole system, PDTR = power from the adapter, PC*/PG* = CPU
+and graphics rails), but the only way to read an arbitrary key through applesmc is the root-only
+key_at_index file. This runs as root, finds the power keys once, then every 2 s writes their
+values in watts to $RUNTIME_DIRECTORY/power.json (world-readable; /run/omk-smc-power.json links to
+it) for a Touch Bar strip and hwdeck. Read-only towards the SMC: it never writes a key, only
+selects which one to read.
+
+Published by default: PSTR (whole system) and PDTR (from the adapter). The per-rail keys
+(CPU, graphics, ...: every key starting with "P") only with OMK_SMC_RAILS=1 in the unit, since
+fine-grained power readings of the CPU are a side channel other users could read.
+"""
+import json
+import os
+import struct
+import sys
+import time
+
+SMC = next((os.path.join("/sys/devices/platform", d) for d in sorted(os.listdir("/sys/devices/platform"))
+            if d.startswith("applesmc.")), "/sys/devices/platform/applesmc.768")
+OUT = os.path.join(os.environ.get("RUNTIME_DIRECTORY", "/run/omk-smc-power"), "power.json")
+RAILS = os.environ.get("OMK_SMC_RAILS") == "1"
+DEFAULT_KEYS = {"PSTR", "PDTR"}
+EVERY = 2.0
+
+
+def read(name, binary=False):
+    with open(os.path.join(SMC, name), "rb" if binary else "r") as f:
+        return f.read() if binary else f.read().strip()
+
+
+def key_at(i):
+    with open(os.path.join(SMC, "key_at_index"), "w") as f:
+        f.write(str(i))
+    return read("key_at_index_name"), read("key_at_index_type"), read("key_at_index_data", True)
+
+
+def decode(typ, b):
+    """SMC value -> float, or None for types that are not numbers."""
+    typ = typ.ljust(4)
+    try:
+        if typ == "flt ":
+            return struct.unpack("<f", b[:4])[0]
+        if typ[:2] in ("sp", "fp"):                     # fixed point: [s|f]p<int bits><frac bits>
+            frac = int(typ[3], 16)
+            return int.from_bytes(b[:2], "big", signed=typ[0] == "s") / (1 << frac)
+        if typ.startswith("ui") or typ.startswith("si"):
+            n = {"8": 1, "16": 2, "32": 4}.get(typ[2:].strip(), len(b))
+            return int.from_bytes(b[:n], "big", signed=typ[0] == "s")
+    except (ValueError, struct.error, IndexError):
+        pass
+    return None
+
+
+def main():
+    count = int(read("key_count"))
+    keys = []
+    for i in range(count):
+        try:
+            name, typ, _ = key_at(i)
+        except OSError:
+            continue
+        if name.startswith("P") and (RAILS or name in DEFAULT_KEYS):
+            keys.append((i, name, typ))
+    print(f"omk-smc-power: {len(keys)} power keys of {count}: "
+          + " ".join(n for _, n, _ in keys), flush=True)
+    while True:
+        values = {}
+        for i, name, typ in keys:
+            try:
+                v = decode(typ, key_at(i)[2])
+            except OSError:
+                continue
+            if v is not None and abs(v) < 1000:
+                values[name] = round(v, 2)
+        tmp = OUT + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump({"t": time.time(), "watts": values}, f)
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, OUT)
+        time.sleep(EVERY)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# omarchy-mac-kit: user override, first in the session PATH (~/.local/share/omk/bin), so Omarchy's
+# idle service runs omk-screensaver (the hwdeck wall + rain). Remove this file (or
+# ./install.sh --undo screensaver) to get Omarchy's own screensaver back.
+exec "$HOME/.local/bin/omk-screensaver" "$@"

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# omarchy-mac-kit: Omarchy's check, but the T1 Touch Bar (appletbdrm, a DRM connector named
+# card*-USB-*) is not an external monitor. Without this every lid close counted as clamshell mode:
+# no lock, nothing frozen. Remove this file to get Omarchy's own check back.
+drm_path="${OMARCHY_DRM_PATH:-/sys/class/drm}"
+for status in "$drm_path"/card*-*/status; do
+  [[ -e $status ]] || continue
+  [[ $status =~ -(eDP|LVDS|DSI|USB)-[^/]+/status$ ]] && continue
+  [[ $(< $status) == "connected" ]] && exit 0
+done
+exit 1

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# omarchy-mac-kit: Omarchy's keyboard-backlight command, but "off" remembers the level only
+# when it is above 0, and "restore" brings that level back. Omarchy's own saves the current level on
+# every lock blank, so a second blank (or the lid handler going first) saved 0 and 0 came back.
+# Everything else goes to Omarchy's script. Remove this file to get Omarchy's behaviour back.
+saved="$HOME/.local/state/omk/kbd-backlight"
+omarchy=${OMARCHY_PATH:-/usr/share/omarchy}/bin/omarchy-brightness-keyboard
+[[ -x $omarchy ]] || omarchy=/usr/bin/omarchy-brightness-keyboard
+dev=$(basename "$(ls -d /sys/class/leds/*kbd_backlight* 2>/dev/null | head -1)")
+[[ -n $dev ]] || exec "$omarchy" "$@"
+arg=${1:-}; [[ $arg == --no-osd ]] && arg=${2:-}
+case $arg in
+off)
+  cur=$(brightnessctl -d "$dev" get)
+  if (( cur > 0 )); then mkdir -p "${saved%/*}"; echo "$cur" > "$saved"; fi
+  brightnessctl -q -d "$dev" set 0 ;;
+restore)
+  [[ -s $saved ]] && brightnessctl -q -d "$dev" set "$(cat "$saved")" ;;
+*)
+  exec "$omarchy" "$@" ;;
+esac

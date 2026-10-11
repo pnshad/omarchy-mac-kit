@@ -1,0 +1,6 @@
+[Unit]
+Description=omarchy-mac-kit: a rain pass over the hwdeck wall (pixel refresh)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/omk-rainpass

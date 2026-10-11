@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# omk-lock-wait-lid-open: PAM helper for /etc/pam.d/omarchy-lock-fingerprint on T1 MacBooks
+# (omarchy-mac-kit, module lock-fingerprint).
+# Each pam_fprintd verify on the T1 is a Secure Enclave keybag handoff (relay stop + restore) and
+# the broker caps one verify at 30 s, so an idle lock screen would make ~120 handoffs an hour and
+# wedge the SEP (t1bridge #14). Block here, doing nothing, while nobody can be at the keyboard:
+#   - the lid is closed, or
+#   - the lock screen has blanked the internal panel (DPMS off; it wakes on any key or touch).
+# pam_fprintd only starts once the panel is lit, so handoffs track real unlock attempts.
+# Exit status is ignored by the PAM stack ([default=ignore]).
+lid=$(ls /proc/acpi/button/lid/*/state 2>/dev/null | head -1)
+panel=$(ls -d /sys/class/drm/card*-eDP-* 2>/dev/null | head -1)
+while :; do
+  if [[ -r $lid && $(< "$lid") == *closed* ]]; then sleep 1; continue; fi
+  if [[ -n $panel && -r $panel/dpms && $(< "$panel/dpms") == Off ]]; then sleep 0.5; continue; fi
+  exit 0
+done

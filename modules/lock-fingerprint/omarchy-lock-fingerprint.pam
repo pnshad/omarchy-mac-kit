@@ -1,0 +1,8 @@
+#%PAM-1.0
+# omarchy-mac-kit lock-fingerprint (T1 Touch ID): every pam_fprintd verify start is a Secure
+# Enclave keybag handoff, and about 60 of them wedge it (t1bridge issue #14). Omarchy restarts a failed verify after 250 ms, so:
+#  1. wait (do nothing) while the lid is closed,
+#  2. then keep ONE verify open for the whole lock (timeout=-1 = no limit).
+auth       [default=ignore]  pam_exec.so quiet /usr/local/bin/omk-lock-wait-lid-open
+auth       required          pam_fprintd.so max-tries=3 timeout=-1
+account    include           system-local-login

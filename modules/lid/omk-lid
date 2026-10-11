@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# omk-lid: a lid handler for Omarchy laptops (omarchy-mac-kit), bound to the lid switch in place
+# of Omarchy's own. No suspend: it freezes instead (real suspend hangs some Macs, docs/gotchas.md).
+# Two modes:
+#   sleep  (default) Omarchy's own lid close: lock + display reconcile, power-saver profile,
+#          keyboard light off, every GUI app frozen (cgroup freezer, no root), the processes named
+#          in ~/.config/omk/lid-stop (one name per line, e.g. a coding agent) stopped with their
+#          children, panel off; lid open resumes all of it and restores the profile and light.
+#   awake  lid close only reconciles displays: no lock, full power, work keeps running.
+# With an external monitor connected the lid close is Omarchy's clamshell mode, as before.
+# Mode file: ~/.config/omk/lid-mode; a Touch Bar strip's lid-mode hold flips it.
+#   omk-lid close | open | toggle | mode
+set -u
+state=~/.config/omk
+mode_file=$state/lid-mode
+mkdir -p "$state"
+mode=$(cat "$mode_file" 2>/dev/null || echo sleep)
+[[ $mode == awake ]] || mode=sleep
+
+descendants() {                                 # every process below $1, depth first
+  local c
+  for c in $(pgrep -P "$1"); do echo "$c"; descendants "$c"; done
+}
+
+case ${1:-mode} in
+close)
+  if [[ $mode == sleep ]]; then
+    # remember the state from before the FIRST close only: a repeated close must not save the
+    # lid-closed values (power-saver, light off) as the ones to restore
+    [[ -s $state/lid-profile ]] || powerprofilesctl get > "$state/lid-profile" 2>/dev/null
+
+    powerprofilesctl set power-saver 2>/dev/null
+    omarchy-brightness-keyboard off       # remembers the level (the kit's override), lock blank shares it
+    omarchy-system-lid-close
+    # Instead of suspend, freeze every GUI app (app-graphical.slice: terminals, hwdeck, browser):
+    # no CPU, no heat, nothing lost. Hyprland and the lock screen (session.slice) and services in
+    # app.slice (the Touch Bar, tmux) keep running.
+    if ! omarchy-hw-external-monitors; then
+      systemctl --user freeze app-graphical.slice
+      # The processes named in lid-stop too (e.g. a coding agent in tmux) and everything they
+      # started, stopped with SIGSTOP; the pids are kept so lid open resumes exactly those.
+      names=$(grep -v '^[[:space:]]*\(#\|$\)' "$state/lid-stop" 2>/dev/null || true)
+      for n in $names; do
+        for p in $(pgrep -x -- "$n"); do echo "$p"; descendants "$p"; done
+      done | sort -u > "$state/lid-stopped"
+      [[ -s $state/lid-stopped ]] && xargs -r kill -STOP < "$state/lid-stopped" 2>/dev/null
+      hyprctl dispatch 'hl.dsp.dpms({ action = "off" })' >/dev/null   # panel off behind the lid
+      # The lock screen runs Omarchy's wake (display on, keyboard light restore) as it comes up,
+      # undoing the two lines above; once it has settled, turn both off again if the lid is still shut.
+      ( for wait in 4 8; do
+          sleep "$wait"
+          omarchy-hw-laptop-closed || exit 0
+          omarchy-brightness-keyboard off
+          hyprctl dispatch 'hl.dsp.dpms({ action = "off" })' >/dev/null
+        done ) >/dev/null 2>&1 &
+    fi
+    exit 0
+  fi
+  exec omarchy-hyprland-monitor-clamshell
+  ;;
+open)
+  if [[ -s $state/lid-profile ]]; then
+    powerprofilesctl set "$(cat "$state/lid-profile")" 2>/dev/null
+    rm -f "$state/lid-profile"
+  fi
+  omarchy-brightness-keyboard restore
+  systemctl --user thaw app-graphical.slice 2>/dev/null
+  if [[ -s $state/lid-stopped ]]; then
+    xargs -r kill -CONT < "$state/lid-stopped" 2>/dev/null
+    rm -f "$state/lid-stopped"
+  fi
+  hyprctl dispatch 'hl.dsp.dpms({ action = "on" })' >/dev/null
+  exec omarchy-hyprland-monitor-clamshell
+  ;;
+toggle)
+  [[ $mode == sleep ]] && mode=awake || mode=sleep
+  echo "$mode" > "$mode_file"
+  echo "$mode"
+  ;;
+mode)
+  echo "$mode"
+  ;;
+esac

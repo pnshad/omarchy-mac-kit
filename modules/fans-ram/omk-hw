@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# omk-hw: root helper for a Touch Bar strip's hold actions (omarchy-mac-kit, module fans-ram).
+# Owned by root; the installing user may run exactly these subcommands via sudo -n
+# (/etc/sudoers.d/omk-hw):
+#   fan-max   every applesmc fan to manual at its maximum rpm (the strip returns them to auto)
+#   fan-auto  every fan back to SMC automatic control
+#   mem-trim  sync, drop clean page/dentry/inode caches, compact memory
+set -euo pipefail
+smc=$(ls -d /sys/devices/platform/applesmc.* 2>/dev/null | head -1)
+case ${1:-} in
+fan-max)
+  [[ -n $smc ]] || { echo "omk-hw: no applesmc" >&2; exit 1; }
+  for f in "$smc"/fan*_manual; do
+    n=${f%_manual}
+    echo 1 > "$f"
+    cat "${n}_max" > "${n}_output"
+  done ;;
+fan-auto)
+  [[ -n $smc ]] || { echo "omk-hw: no applesmc" >&2; exit 1; }
+  for f in "$smc"/fan*_manual; do echo 0 > "$f"; done ;;
+mem-trim)
+  sync
+  echo 3 > /proc/sys/vm/drop_caches
+  echo 1 > /proc/sys/vm/compact_memory ;;
+*)
+  echo "usage: omk-hw fan-max|fan-auto|mem-trim" >&2
+  exit 2 ;;
+esac
