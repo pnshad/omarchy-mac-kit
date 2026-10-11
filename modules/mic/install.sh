@@ -93,10 +93,28 @@ build snd-hda-codec-cs8409.ko there as root with the upstream build script (noth
   have=$(sha256sum "$tarball" | cut -d' ' -f1)
   [[ -n $want && $want == "$have" ]] || die "kernel source sha256 mismatch (want '$want', have '$have')"
   say "  kernel source sha256 ok ($have)"
-  # --dkms: the upstream script prepares and patches the sources without installing anything;
-  # it finds the tarball already in build/ and does not download it again
-  (cd "$SRC" && bash install.cirrus.driver.sh -k "$kver" --dkms)
+  # --dkms: the upstream script prepares and patches the sources without installing anything.
+  # It always runs `wget -c URL -P build`; a stand-in wget (root-owned, in $WORK/bin) hands it the
+  # tarball already downloaded and checked above, so nothing unchecked is used and wget need not be
+  # installed. The upstream script exits 0 even when it fails, so the module itself is checked.
+  install -d -m 0755 "$WORK/bin"
+  cat > "$WORK/bin/wget" <<'SHIM'
+#!/bin/sh
+# omarchy-mac-kit mic build: stand-in for `wget -c URL -P DIR` (the upstream script's only use).
+url= dir=.
+while [ $# -gt 0 ]; do
+  case $1 in -P) dir=$2; shift ;; -c|-q|-nv) ;; *) url=$1 ;; esac; shift
+done
+f=$dir/$(basename "$url")
+[ -s "$f" ] && exit 0
+exec curl -fsSL -o "$f" "$url"
+SHIM
+  chmod 0755 "$WORK/bin/wget"
+  rm -rf "$SRC/build/hda"
+  (cd "$SRC" && PATH="$WORK/bin:$PATH" bash install.cirrus.driver.sh -k "$kver" --dkms)
+  [[ -d $SRC/build/hda ]] || die "the upstream script did not prepare build/hda (see its output above)"
   (cd "$SRC" && make KERNELRELEASE="$kver")    # the top Makefile, as the upstream script does
+  [[ -f $KO ]] || die "no module was built (see the make output above)"
   chown -R root:root "$WORK"; chmod -R go-w "$WORK"
   [[ -f $KO ]] || die "build finished without $KO"
   say "  built $KO (sha256 $(sha256sum "$KO" | cut -c1-16)...); next: sudo $0 test" ;;
