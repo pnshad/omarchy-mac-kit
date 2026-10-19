@@ -8,7 +8,7 @@ Install all of it or one module; every module undoes cleanly.
 |---|---|---|
 | `hwdeck` (optional) | [hwdeck](https://github.com/pnshad/hwdeck): full-screen terminal views of CPU, memory, thermal, network, power, battery; the Touch Bar's slots open them | no |
 | `lid` | lid close locks, freezes GUI apps, turns the panel off and saves power, without suspend; a sleep/awake mode; two Omarchy fixes for Macs | no |
-| `touchbar` | [touchbar-strip](https://github.com/pnshad/touchbar-strip) as the Touch Bar: clock, agent status, machine slots with tap/hold actions, dials, Touch ID key | no |
+| `touchbar` | [touchbar-strip](https://github.com/pnshad/touchbar-strip) as the Touch Bar: clock, agent status or an Omarchy dock (open apps with their own icons, workspaces), machine slots with tap/hold actions, battery time left, dials, Touch ID key | no |
 | `fans-ram` | fans to max / auto and a RAM trim, for the strip's holds (an exact-argument sudo rule) | yes |
 | `smc-power` | whole-system watts from the Apple SMC, published for hwdeck and the strip | yes |
 | `battery-limit` | hold the battery at 80 % (patched applesmc, GPL-2.0, tested kernels only) | yes |

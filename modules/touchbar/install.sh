@@ -9,7 +9,7 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/../../lib/common.sh"
 REPO=https://github.com/pnshad/touchbar-strip
-COMMIT=79bb14c275ae2b557ca952f31bab792119ff7aad   # pinned; bump deliberately after reading the diff
+COMMIT=44f7d6151111afa00d777fe1f499a5985f2dc693   # pinned; bump deliberately after reading the diff
 TAG=${OMK_STRIP_TAG:-}                           # optional: a release tag that must point at COMMIT
 LIB=$HOME/.local/lib/touchbar-strip
 CONF=$HOME/.config/touchbar-strip/config.json
