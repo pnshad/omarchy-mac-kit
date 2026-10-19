@@ -17,8 +17,9 @@ they do, and for anyone building something similar.
 3. **Omarchy's lock blank saves the keyboard light level with `brightnessctl -s` on every
    blank**, so a second blank saves 0 and 0 comes back. The `lid` module's override saves only
    levels above 0.
-4. **Real suspend hangs a T1 MacBook Pro** (deep S3 and s2idle both, even with NVMe D3cold off).
-   The kit never enables suspend; the `lid` module freezes GUI apps instead.
+4. **Real suspend hangs a T1 MacBook Pro on the stock kernel** (deep S3 and s2idle both, even with
+   NVMe D3cold off). The `lid` module freezes GUI apps instead. The `s2idle` module's side kernel
+   (omarchy-pkgs PR 596 + 544) fixes it on MacBookPro14,x: see 18–21.
 5. **t1bridge's `t1-touchbar.service` runs with `NoNewPrivileges=yes`**, so `sudo` inside the
    renderer fails. The strip calls its root helper through `systemd-run --user`, which starts
    outside that limit.
@@ -61,3 +62,28 @@ they do, and for anyone building something similar.
     under a lamp).
 17. **NetworkManager allows Wi-Fi radio toggles from the session; `iw dev <if> link` works
     without root.**
+
+## Suspend (the `s2idle` module)
+
+18. **The T1 aborts every suspend with a remote wake.** The iBridge (usb `05ac:8600`) raises a
+    wakeup the instant the machine suspends (`xhci … pci_pm_suspend` returns `-16`), so even a
+    kernel that could sleep never does. `power/wakeup=disabled` on it (and on the Alpine Ridge
+    Thunderbolt NHI / xHCI, `8086:15d2` / `15d4`, as in the working MacBookPro14,3 recipe) lets
+    every device suspend; the module's udev rule does that at boot.
+19. **`pm_trace` and `rtcwake` do not mix.** `pm_trace=1` stores its hash in the RTC, so the alarm
+    `rtcwake` computes from the RTC lands in the wrong year and never fires: the machine looks hung
+    but is only asleep. Press a key before calling it a hang. Use `pm_trace` only with
+    `pm_test=devices`; for a real cycle set `pm_trace=0`, `hwclock --systohc`, then
+    `rtcwake -m freeze -s 25`.
+20. **Never suspend while booted on the stock kernel.** It is the platform-level s2idle path that
+    hangs (most likely the Thunderbolt host router and the ACPICA PCI bus derivation, PR 596's
+    0664 and PR 544's 0771); only the side kernel has the fixes. `uname -r` must end in
+    `-omarchy-s2idle` before any `rtcwake`, lid sleep or `systemctl suspend`.
+21. **The stock entry is the fallback, by design.** The side kernel is a separate package
+    (`linux-omarchy-s2idle`), so the stock `linux-omarchy` keeps its entry and stays Limine's
+    default; a plain reboot returns to it, and a hang on the side kernel is a hard power-off and
+    the default entry. Make the side kernel the default (`BOOT_ORDER` in `/etc/default/limine`)
+    only after it has suspended and resumed for you. Its cmdline is a kernel-specific
+    `KERNEL_CMDLINE[linux-omarchy-s2idle]`, which *replaces* `[default]` rather than appending, so
+    the module repeats the running cmdline and adds `mem_sleep_default=s2idle
+    button.lid_init_state=open intel_iommu=off`.

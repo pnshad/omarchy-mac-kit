@@ -1,0 +1,7 @@
+# omarchy-mac-kit s2idle: devices that must not raise a remote wake during suspend.
+# The T1 iBridge (usb 05ac:8600) wakes a MacBookPro14,x the instant it is suspended
+# (xhci pci_pm_suspend -16); with its wakeup disabled every device suspends. The Alpine Ridge
+# Thunderbolt NHI / xHCI (8086:15d2 / 15d4) follow the working MacBookPro14,3 recipe
+# (omacom/omarchy-pkgs#596). Undo: ./install.sh --undo s2idle (or rm this file and reboot).
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="05ac", ATTR{idProduct}=="8600", ATTR{power/wakeup}="disabled"
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x8086", ATTR{device}=="0x15d2|0x15d4", ATTR{power/wakeup}="disabled"

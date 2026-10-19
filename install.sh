@@ -18,7 +18,7 @@ KIT=$(cd "$(dirname "$0")" && pwd)
 USER_MODULES="hwdeck lid touchbar"
 # Moved to omarchy-mac-kit-extras; only their --undo stays here, for older installs.
 MOVED_MODULES="wall screensaver"
-ROOT_MODULES="fans-ram smc-power battery-limit mic lock-fingerprint"
+ROOT_MODULES="fans-ram smc-power battery-limit mic lock-fingerprint s2idle"
 what() {
   case $1 in
   hwdeck) echo "terminal hardware dashboards (any Linux)" ;;
@@ -29,6 +29,7 @@ what() {
   battery-limit) echo "patched applesmc (GPL-2.0, DKMS): battery charge limit (Intel Macs, tested kernels only)" ;;
   mic) echo "build snd_hda_macbookpro for the built-in mic (Cirrus CS8409 Macs)" ;;
   lock-fingerprint) echo "Touch ID on Omarchy's lock without wedging the T1 (PAM)" ;;
+  s2idle) echo "a side kernel that suspends (linux-omarchy-s2idle, PR 596 + 544) + wakeup rule + Limine cmdline (MacBookPro14,x)" ;;
   esac
 }
 
@@ -56,6 +57,7 @@ detect() {
   [[ $smc == yes ]] && SUGGEST_ROOT+=" fans-ram smc-power battery-limit"
   [[ $cs == yes ]] && SUGGEST_ROOT+=" mic"
   [[ $t1 == yes && $omarchy == yes ]] && SUGGEST_ROOT+=" lock-fingerprint"
+  [[ $product == MacBookPro14,* && $omarchy == yes ]] && SUGGEST_ROOT+=" s2idle"
   return 0
 }
 
@@ -104,7 +106,7 @@ if [[ -n $undo ]]; then
   if moved "$undo"; then
     say "$undo now belongs to omarchy-mac-kit-extras; undoing what an older omarchy-mac-kit installed:"
     OMK_DRY_RUN=$OMK_DRY_RUN bash "$KIT/lib/legacy-undo.sh" "$undo"
-  elif [[ $undo == mic ]]; then run_module mic undo; else run_module "$undo" --undo; fi
+  elif [[ $undo == mic || $undo == s2idle ]]; then run_module "$undo" undo; else run_module "$undo" --undo; fi
   exit 0
 fi
 
@@ -131,6 +133,11 @@ for m in "${picks[@]}"; do
     if dry; then run_module mic build; else
       say ""; say "== mic: three steps, run them yourself in order:"
       say "   sudo $KIT/modules/mic/install.sh build   then   test   then   install"
+    fi
+  elif [[ $m == s2idle ]]; then
+    if dry; then run_module s2idle build; run_module s2idle install; else
+      say ""; say "== s2idle: two steps, run them yourself in order (the build takes hours):"
+      say "   $KIT/modules/s2idle/install.sh build   (as you)   then   sudo $KIT/modules/s2idle/install.sh install"
     fi
   else
     run_module "$m"

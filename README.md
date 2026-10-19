@@ -14,6 +14,7 @@ Install all of it or one module; every module undoes cleanly.
 | `battery-limit` | hold the battery at 80 % (patched applesmc, GPL-2.0, tested kernels only) | yes |
 | `mic` | the built-in microphone on Cirrus CS8409 Macs (builds snd_hda_macbookpro) | yes |
 | `lock-fingerprint` | Touch ID on Omarchy's lock screen without wedging the T1 | yes |
+| `s2idle` | a side kernel that suspends: `linux-omarchy-s2idle` (omarchy-pkgs PR 596 + 544, MacBookPro14,x), a wakeup rule for the T1 and Thunderbolt, the Limine cmdline for its entry only; the stock entry stays default and fallback | build: no · install: yes |
 
 Core = `touchbar`, `lid` and, if you want them, `hwdeck` and the root modules. Nothing
 decorative is installed or switched on by default.
@@ -39,6 +40,19 @@ it will grant (files, units, sudo rules) and waits for `y`. They refuse to run f
 
 The `mic` module is three separate steps you run yourself:
 `sudo modules/mic/install.sh build`, then `test` (this boot only), then `install`.
+
+The `s2idle` module is two: `modules/s2idle/install.sh build` as you (a kernel build, 2–3 hours
+and about 25 GB under `~/.cache/omk/s2idle`; `OMK_S2IDLE_WORK` moves it), then
+`sudo modules/s2idle/install.sh install`. It builds omarchy-pkgs' `linux-omarchy` 7.2.5 at a
+pinned commit of [PR 596](https://github.com/omacom/omarchy-pkgs/pull/596) plus
+[PR 544](https://github.com/omacom/omarchy-pkgs/pull/544)'s ACPICA patch (sha256-checked) under
+its own package name, so it sits beside the stock kernel with its own boot entry and
+`omarchy-update` never touches it; the exact PKGBUILD edits are
+[modules/s2idle/edit-pkgbuild.sh](modules/s2idle/edit-pkgbuild.sh). After a reboot pick
+`linux-omarchy-s2idle` in the boot menu and test with `rtcwake` before trusting it
+(docs/gotchas.md 18–21). To boot it by default put `linux-omarchy-s2idle` first in `BOOT_ORDER`
+in `/etc/default/limine`; the stock kernel stays in the menu as the fallback. The module does not
+change what the lid does.
 
 `hwdeck` and `touchbar` clone their repos and check out a pinned commit, verified after the
 clone (the maintainer tags releases; `OMK_HWDECK_TAG` / `OMK_STRIP_TAG` pick a tag, which must
@@ -70,11 +84,14 @@ owns them now and its `--undo` does the same; both use the same `omk` files and 
 - settings: `~/.config/omk/`, state `~/.local/state/omk/`
 - root: `/usr/local/bin/omk-hw`, `/etc/sudoers.d/omk-hw`, `omk-smc-power.service`,
   `omk-battery-limit.service` + DKMS `omk-applesmc-bclm`, `/var/lib/omk-mic`,
-  `/etc/pam.d/omarchy-lock-fingerprint`
+  `/etc/pam.d/omarchy-lock-fingerprint`, packages `linux-omarchy-s2idle` + `-headers`,
+  `/etc/udev/rules.d/90-omk-s2idle-wakeup.rules`, `/etc/limine-entry-tool.d/omk-s2idle.conf`
 
 ## Not here
 
-- **Suspend.** Real suspend hangs T1 MacBook Pros; the `lid` module freezes instead.
+- **Suspend on the stock kernel.** It hangs T1 MacBook Pros; the `lid` module freezes instead.
+  The `s2idle` module's side kernel suspends and resumes on MacBookPro14,x, but only when you
+  booted it: never suspend while on the stock entry.
 - **t1bridge / t1-revive** (Touch Bar, Touch ID, camera): install them from
   [standardagents/t1bridge](https://github.com/standardagents/t1bridge) first.
 
